@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     vim \
     htop \
     procps \
+    cmake \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies for self-healing
