@@ -47,11 +47,11 @@ RUN chmod +x /workspace/runpod-serverless/start-worker.sh
 RUN chmod +x /workspace/runpod-serverless/monitor_daemon.py
 
 # Install llama-server (llama.cpp)
-# Note: Adjust commit hash to stable release
+# Using master branch (stable)
 RUN cd /tmp && \
     git clone https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
-    git checkout master-ff92572 && \
+    git checkout master && \
     cmake -B build -DGGML_CUDA=ON && \
     cmake --build build --config Release --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/ && \
