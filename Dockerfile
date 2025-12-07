@@ -32,15 +32,15 @@ RUN pip install --no-cache-dir \
 # Create log directory
 RUN mkdir -p /workspace/logs
 
-# Copy self-healing modules
-COPY runpod-serverless/runpod_error_types.py /workspace/runpod-serverless/
-COPY runpod-serverless/recovery_executor.py /workspace/runpod-serverless/
-COPY runpod-serverless/circuit_breaker.py /workspace/runpod-serverless/
-COPY runpod-serverless/health_monitor.py /workspace/runpod-serverless/
-COPY runpod-serverless/monitor_daemon.py /workspace/runpod-serverless/
+# Copy self-healing modules (files are in repo root)
+COPY runpod_error_types.py /workspace/runpod-serverless/
+COPY recovery_executor.py /workspace/runpod-serverless/
+COPY circuit_breaker.py /workspace/runpod-serverless/
+COPY health_monitor.py /workspace/runpod-serverless/
+COPY monitor_daemon.py /workspace/runpod-serverless/
 
 # Copy startup script
-COPY runpod-serverless/start-worker.sh /workspace/runpod-serverless/
+COPY start-worker.sh /workspace/runpod-serverless/
 
 # Make scripts executable
 RUN chmod +x /workspace/runpod-serverless/start-worker.sh
