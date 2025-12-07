@@ -68,7 +68,12 @@ RUN cd /tmp && \
         -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -Wl,--allow-shlib-undefined" && \
     cmake --build build --config Release --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/ && \
+    cp build/bin/*.so* /usr/local/lib/ 2>/dev/null || true && \
+    ldconfig && \
     cd / && rm -rf /tmp/llama.cpp
+
+# Ensure shared libraries are found at runtime
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Model directory (mounted at runtime or pre-baked)
 RUN mkdir -p /workspace/models
