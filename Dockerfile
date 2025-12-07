@@ -51,12 +51,21 @@ RUN chmod +x /workspace/runpod-serverless/monitor_daemon.py
 RUN chmod +x /workspace/runpod-serverless/runpod_health_service.py
 
 # Install llama-server (llama.cpp)
-# Using master branch (stable)
+# Session 751: Fixed CUDA linking for builds WITHOUT GPU
+# Problem: libcuda.so.1 (driver) not available during docker build
+# Solution: Use CUDA stubs + allow-shlib-undefined (symbols resolved at runtime on RunPod)
+ENV LIBRARY_PATH=/usr/local/cuda/lib64/stubs:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:$LD_LIBRARY_PATH
+
 RUN cd /tmp && \
     git clone https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
     git checkout master && \
-    cmake -B build -DGGML_CUDA=ON -DLLAMA_CURL=OFF && \
+    cmake -B build \
+        -DGGML_CUDA=ON \
+        -DLLAMA_CURL=OFF \
+        -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -Wl,--allow-shlib-undefined" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -Wl,--allow-shlib-undefined" && \
     cmake --build build --config Release --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/ && \
     cd / && rm -rf /tmp/llama.cpp
