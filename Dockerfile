@@ -1,40 +1,16 @@
 # Sophie Serverless Worker - llama.cpp with GGUF Model
 # RunPod Serverless Compatible
 #
+# Uses official pre-built llama.cpp image with CUDA support
 # Build: docker build -t buchhaltgenie/sophie-serverless:latest .
 # Test:  docker run --gpus all -p 8080:8080 buchhaltgenie/sophie-serverless:latest
 
-FROM nvidia/cuda:12.4.0-devel-ubuntu22.04 AS builder
+# Use official llama.cpp server image with CUDA
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    cmake \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Clone and build llama.cpp with CUDA support
-WORKDIR /build
-RUN git clone https://github.com/ggerganov/llama.cpp.git && \
-    cd llama.cpp && \
-    cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="86;89" && \
-    cmake --build build --config Release -j$(nproc) && \
-    cp build/bin/llama-server /usr/local/bin/
-
-# ============================================
-# Runtime Image
-# ============================================
-FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy llama-server binary
-COPY --from=builder /usr/local/bin/llama-server /usr/local/bin/llama-server
+# Install curl for health checks and model download
+USER root
+RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Create model directory
 WORKDIR /workspace
