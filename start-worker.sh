@@ -19,6 +19,7 @@ set -e  # Exit on error
 
 # Configuration
 MODEL_PATH="${MODEL_PATH:-/workspace/models/buchhaltgenie-universal-v5-Q4_K_M.gguf}"
+MODEL_URL="${MODEL_URL:-}"
 N_GPU_LAYERS="${N_GPU_LAYERS:-999}"
 CTX_SIZE="${CTX_SIZE:-4096}"
 BATCH_SIZE="${BATCH_SIZE:-512}"
@@ -26,6 +27,7 @@ N_PARALLEL="${N_PARALLEL:-4}"
 HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-30}"
 RECOVERY_ENABLED="${RECOVERY_ENABLED:-true}"
 LLAMA_SERVER_PORT="${LLAMA_SERVER_PORT:-8080}"
+PORT_HEALTH="${PORT_HEALTH:-7860}"
 
 # Logging
 LOG_DIR="${LOG_DIR:-/workspace/logs}"
@@ -33,12 +35,15 @@ mkdir -p "$LOG_DIR"
 
 LLAMA_LOG="$LOG_DIR/llama-server.log"
 MONITOR_LOG="$LOG_DIR/health-monitor.log"
+HEALTH_SERVICE_LOG="$LOG_DIR/runpod-health-service.log"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting RunPod Serverless Worker"
 echo "  Model: $MODEL_PATH"
+echo "  Model URL: ${MODEL_URL:-none (pre-baked)}"
 echo "  GPU Layers: $N_GPU_LAYERS"
 echo "  Context Size: $CTX_SIZE"
-echo "  Port: $LLAMA_SERVER_PORT"
+echo "  llama-server Port: $LLAMA_SERVER_PORT"
+echo "  Health Service Port: $PORT_HEALTH"
 echo "  Recovery: $RECOVERY_ENABLED"
 echo ""
 
@@ -73,6 +78,12 @@ wait_for_health() {
 # Cleanup function
 cleanup() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Shutting down worker..."
+
+    # Kill RunPod health service
+    if [ ! -z "$HEALTH_SERVICE_PID" ] && is_running "$HEALTH_SERVICE_PID"; then
+        echo "  Stopping RunPod health service (PID=$HEALTH_SERVICE_PID)"
+        kill -15 "$HEALTH_SERVICE_PID" 2>/dev/null || true
+    fi
 
     # Kill llama-server
     if [ ! -z "$LLAMA_PID" ] && is_running "$LLAMA_PID"; then
@@ -121,6 +132,21 @@ if ! wait_for_health; then
     exit 1
 fi
 
+# Start RunPod Health Service (for load balancer /ping checks)
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting RunPod Health Service..."
+
+nohup python3 /workspace/runpod-serverless/runpod_health_service.py \
+    > "$HEALTH_SERVICE_LOG" 2>&1 &
+
+HEALTH_SERVICE_PID=$!
+
+echo "  Health service started (PID=$HEALTH_SERVICE_PID)"
+echo "  Logs: $HEALTH_SERVICE_LOG"
+echo "  Endpoint: http://0.0.0.0:$PORT_HEALTH/ping"
+
+# Wait a moment for health service to start
+sleep 2
+
 # Start health monitor sidecar (if recovery enabled)
 if [ "$RECOVERY_ENABLED" = "true" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting health monitor sidecar..."
@@ -158,6 +184,18 @@ while true; do
         echo "  Last 100 lines of logs:"
         tail -n 100 "$LLAMA_LOG"
         exit 1
+    fi
+
+    # Check if RunPod health service is still running
+    if ! is_running "$HEALTH_SERVICE_PID"; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: RunPod health service died (PID=$HEALTH_SERVICE_PID)"
+        echo "  Attempting restart..."
+
+        nohup python3 /workspace/runpod-serverless/runpod_health_service.py \
+            > "$HEALTH_SERVICE_LOG" 2>&1 &
+
+        HEALTH_SERVICE_PID=$!
+        echo "  Health service restarted (PID=$HEALTH_SERVICE_PID)"
     fi
 
     # Check if health monitor is still running (if enabled)

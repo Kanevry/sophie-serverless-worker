@@ -40,6 +40,7 @@ COPY recovery_executor.py /workspace/runpod-serverless/
 COPY circuit_breaker.py /workspace/runpod-serverless/
 COPY health_monitor.py /workspace/runpod-serverless/
 COPY monitor_daemon.py /workspace/runpod-serverless/
+COPY runpod_health_service.py /workspace/runpod-serverless/
 
 # Copy startup script
 COPY start-worker.sh /workspace/runpod-serverless/
@@ -47,6 +48,7 @@ COPY start-worker.sh /workspace/runpod-serverless/
 # Make scripts executable
 RUN chmod +x /workspace/runpod-serverless/start-worker.sh
 RUN chmod +x /workspace/runpod-serverless/monitor_daemon.py
+RUN chmod +x /workspace/runpod-serverless/runpod_health_service.py
 
 # Install llama-server (llama.cpp)
 # Using master branch (stable)
@@ -71,9 +73,11 @@ ENV N_PARALLEL=4
 ENV HEALTH_CHECK_INTERVAL=30
 ENV RECOVERY_ENABLED=true
 ENV LLAMA_SERVER_PORT=8080
+ENV PORT_HEALTH=7860
 
-# Expose port
+# Expose ports
 EXPOSE 8080
+EXPOSE 7860
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
