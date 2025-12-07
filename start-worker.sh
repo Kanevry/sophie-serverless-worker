@@ -176,41 +176,14 @@ echo "  Models: http://localhost:$LLAMA_SERVER_PORT/v1/models"
 echo "  Chat: POST http://localhost:$LLAMA_SERVER_PORT/v1/chat/completions"
 echo ""
 
-# Keep script running (monitor processes)
-while true; do
-    # Check if llama-server is still running
-    if ! is_running "$LLAMA_PID"; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: llama-server died (PID=$LLAMA_PID)"
-        echo "  Last 100 lines of logs:"
-        tail -n 100 "$LLAMA_LOG"
-        exit 1
-    fi
+# Start RunPod Serverless Handler (Session 751)
+# This is the main process that receives jobs from RunPod queue
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting RunPod Serverless Handler..."
+echo "  Handler will forward jobs to llama-server on port $LLAMA_SERVER_PORT"
 
-    # Check if RunPod health service is still running
-    if ! is_running "$HEALTH_SERVICE_PID"; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: RunPod health service died (PID=$HEALTH_SERVICE_PID)"
-        echo "  Attempting restart..."
+# Export environment for handler
+export LLAMA_SERVER_PORT
+export REQUEST_TIMEOUT="${REQUEST_TIMEOUT:-120}"
 
-        nohup python3 /workspace/runpod-serverless/runpod_health_service.py \
-            > "$HEALTH_SERVICE_LOG" 2>&1 &
-
-        HEALTH_SERVICE_PID=$!
-        echo "  Health service restarted (PID=$HEALTH_SERVICE_PID)"
-    fi
-
-    # Check if health monitor is still running (if enabled)
-    if [ "$RECOVERY_ENABLED" = "true" ] && ! is_running "$MONITOR_PID"; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Health monitor died (PID=$MONITOR_PID)"
-        echo "  Attempting restart..."
-
-        nohup python3 /workspace/runpod-serverless/monitor_daemon.py \
-            --port "$LLAMA_SERVER_PORT" \
-            --interval "$HEALTH_CHECK_INTERVAL" \
-            > "$MONITOR_LOG" 2>&1 &
-
-        MONITOR_PID=$!
-        echo "  Health monitor restarted (PID=$MONITOR_PID)"
-    fi
-
-    sleep 10
-done
+# Run handler as main process (required for RunPod Serverless)
+exec python3 /workspace/runpod-serverless/handler.py

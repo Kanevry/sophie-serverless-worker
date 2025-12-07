@@ -24,12 +24,13 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies for self-healing
+# Install Python dependencies for self-healing + RunPod SDK
 # Note: torch is already included in base image
 RUN pip install --no-cache-dir \
     psutil>=5.9.0 \
     aiohttp>=3.9.0 \
-    sentry-sdk>=2.0.0
+    sentry-sdk>=2.0.0 \
+    runpod>=1.7.0
 
 # Create log directory
 RUN mkdir -p /workspace/logs
@@ -41,6 +42,9 @@ COPY circuit_breaker.py /workspace/runpod-serverless/
 COPY health_monitor.py /workspace/runpod-serverless/
 COPY monitor_daemon.py /workspace/runpod-serverless/
 COPY runpod_health_service.py /workspace/runpod-serverless/
+
+# Copy RunPod Serverless handler (Session 751 - fixes job processing)
+COPY handler.py /workspace/runpod-serverless/
 
 # Copy startup script
 COPY start-worker.sh /workspace/runpod-serverless/
