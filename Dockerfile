@@ -54,7 +54,7 @@ RUN cd /tmp && \
     git clone https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
     git checkout master && \
-    cmake -B build -DGGML_CUDA=ON && \
+    cmake -B build -DGGML_CUDA=ON -DLLAMA_CURL=OFF && \
     cmake --build build --config Release --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/ && \
     cd / && rm -rf /tmp/llama.cpp
