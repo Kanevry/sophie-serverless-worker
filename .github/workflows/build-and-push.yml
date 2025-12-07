@@ -5,7 +5,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main]
+    branches: [master]  # Using master as default branch
     paths-ignore:
       - '**.md'
       - '.gitignore'
